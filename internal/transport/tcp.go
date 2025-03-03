@@ -100,3 +100,7 @@ func NewTCPSegmentFromLower(seg Segment) (*TCPSegment, error) {
 		Data:     rawData[offset:],
 	}, nil
 }
+
+func (t *TCPSegment) String() string {
+	return fmt.Sprintf("%s:%d -> %s:%d, seq=%d, ack=%d, SYN=%t, RST=%t, FIN=%t, len(data)=%d\n", t.SrcIp, t.SrcPort, t.DstIp, t.DstPort, t.Seq, t.Ack, t.Flags.SYN(), t.Flags.RST(), t.Flags.FIN(), len(t.Data))
+}

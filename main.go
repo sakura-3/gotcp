@@ -1,28 +1,30 @@
 package main
 
 import (
+	"context"
+	"gotcp/internal"
+	"gotcp/internal/ip"
+	"gotcp/internal/transport"
 	"log"
-
-	"github.com/songgao/water"
-	// "github.com/songgao/packets/ethernet"
 )
 
 func main() {
-	ifce, err := water.New(water.Config{
-		DeviceType: water.TUN,
+	upC := make(chan transport.Segment)
+	downC := make(chan transport.Segment)
+
+	ipReader := internal.NewIpReader("gotcp", upC, downC).WithFilter(func(ipPkt *ip.IPPacket) bool {
+		return ipPkt.Proto == transport.IPProtoTCP
 	})
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	log.Printf("Interface Name: %s\n", ifce.Name())
+	go ipReader.Run(context.Background())
 
-	packet := make([]byte, 2000)
-	for {
-		n, err := ifce.Read(packet)
+	for seg := range upC {
+		ts, err := transport.NewTCPSegmentFromLower(seg)
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("%s", err.Error())
+			continue
 		}
-		log.Printf("Packet Received: % x\n", packet[:n])
+
+		log.Print(ts)
 	}
 }

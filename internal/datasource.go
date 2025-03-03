@@ -12,25 +12,36 @@ import (
 
 type IpReader struct {
 	*water.Interface
-	upC   chan<- transport.Segment // IP -> transport,需要在IP层关闭
-	downC <-chan transport.Segment // transport -> IP,由传输层关闭
+	upC    chan<- transport.Segment // IP -> transport,需要在IP层关闭
+	downC  <-chan transport.Segment // transport -> IP,由传输层关闭
+	filter func(ipPkt *ip.IPPacket) bool
 }
 
-func NewIpReader(up chan<- transport.Segment, down <-chan transport.Segment) (*IpReader, error) {
+func NewIpReader(name string, up chan<- transport.Segment, down <-chan transport.Segment) *IpReader {
 	ifce, err := water.New(water.Config{
 		DeviceType: water.TUN,
+		PlatformSpecificParams: water.PlatformSpecificParams{
+			Name: name,
+		},
 	})
+
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	ipReader := &IpReader{
 		Interface: ifce,
 		upC:       up,
 		downC:     down,
+		filter:    nil,
 	}
 
-	return ipReader, nil
+	return ipReader
+}
+
+func (ir *IpReader) WithFilter(filter func(ipPkt *ip.IPPacket) bool) *IpReader {
+	ir.filter = filter
+	return ir
 }
 
 func (ir *IpReader) Run(ctx context.Context) {
@@ -53,6 +64,11 @@ func (ir *IpReader) Run(ctx context.Context) {
 				log.Println(err.Error())
 				continue
 			}
+
+			if ir.filter != nil && !ir.filter(ipPkt) {
+				continue
+			}
+
 			data := make([]byte, len(ipPkt.Payload))
 			copy(data, ipPkt.Payload)
 			ir.upC <- transport.Segment{
