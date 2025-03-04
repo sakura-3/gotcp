@@ -5,6 +5,7 @@ import (
 	"gotcp/internal"
 	"gotcp/internal/ip"
 	"gotcp/internal/transport"
+	"gotcp/internal/transport/tcp"
 	"log"
 )
 
@@ -19,7 +20,7 @@ func main() {
 	go ipReader.Run(context.Background())
 
 	for seg := range upC {
-		ts, err := transport.NewTCPSegmentFromLower(seg)
+		ts, err := tcp.NewTCPSegmentFromLower(seg)
 		if err != nil {
 			log.Printf("%s", err.Error())
 			continue

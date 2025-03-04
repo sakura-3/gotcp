@@ -10,11 +10,13 @@ import (
 	"github.com/songgao/water"
 )
 
+type Filter func(ipPkt *ip.IPPacket) bool
+
 type IpReader struct {
 	*water.Interface
 	upC    chan<- transport.Segment // IP -> transport,需要在IP层关闭
 	downC  <-chan transport.Segment // transport -> IP,由传输层关闭
-	filter func(ipPkt *ip.IPPacket) bool
+	filter Filter
 }
 
 func NewIpReader(name string, up chan<- transport.Segment, down <-chan transport.Segment) *IpReader {
@@ -39,7 +41,7 @@ func NewIpReader(name string, up chan<- transport.Segment, down <-chan transport
 	return ipReader
 }
 
-func (ir *IpReader) WithFilter(filter func(ipPkt *ip.IPPacket) bool) *IpReader {
+func (ir *IpReader) WithFilter(filter Filter) *IpReader {
 	ir.filter = filter
 	return ir
 }

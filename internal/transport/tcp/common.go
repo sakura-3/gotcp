@@ -1,8 +1,55 @@
-package transport
+package tcp
 
 import (
 	"fmt"
+	"gotcp/internal/ip"
+	"gotcp/internal/transport"
 )
+
+type State uint8
+
+const (
+	StateClosed State = iota
+	StateListen
+	StateSynSent
+	StateSynReceived
+	StateEstablished
+	StateFinWait1
+	StateFinWait2
+)
+
+var stmp = [...]string{
+	"Closed",
+	"Listen",
+	"SynSent",
+	"SynReceived",
+	"Established",
+	"FinWait1",
+	"FinWait2",
+}
+
+func (s State) String() string {
+	return stmp[s]
+}
+
+// 每个TCP连接的唯一标识
+type Quad struct {
+	SrcIp   ip.IP
+	SrcPort uint16
+	DstIp   ip.IP
+	DstPort uint16
+}
+
+type connection struct {
+	Quad
+	State
+}
+
+var TCPFilter = func(ipPkt *ip.IPPacket) bool {
+	return ipPkt.Proto == transport.IPProtoTCP
+}
+
+// =======================  TCP报文结构  ===============================  //
 
 // URG | ACK | PSH | RST | SYN | FIN
 type Flags uint8
@@ -51,28 +98,28 @@ func (f Flags) FIN() bool {
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 */
 type TCPSegment struct {
-	Pseudo          // 伪首部
-	SrcPort  uint16 // 源端口
-	DstPort  uint16 // 目的端口
-	Seq      uint32 // 序列号
-	Ack      uint32 // 确认号
-	Offset   uint8  // TCP头部长度,已经乘以4,
-	Reserved uint8  // 保留字段,一定为0
-	Flags    Flags  // 标志位
-	Window   uint16 // 窗口大小
-	Checksum uint16 // 校验和
-	Urgent   uint16 // 紧急指针
-	Options  []byte // 选项
-	Data     []byte // 数据
+	transport.Pseudo        // 伪首部
+	SrcPort          uint16 // 源端口
+	DstPort          uint16 // 目的端口
+	Seq              uint32 // 序列号
+	Ack              uint32 // 确认号
+	Offset           uint8  // TCP头部长度,已经乘以4,
+	Reserved         uint8  // 保留字段,一定为0
+	Flags            Flags  // 标志位
+	Window           uint16 // 窗口大小
+	Checksum         uint16 // 校验和
+	Urgent           uint16 // 紧急指针
+	Options          []byte // 选项
+	Data             []byte // 数据
 }
 
 // 从下层数据包构造TCP数据段,pseudo 依赖网络层提供, 用于计算校验和
-func NewTCPSegmentFromLower(seg Segment) (*TCPSegment, error) {
-	pseudo := Pseudo{
+func NewTCPSegmentFromLower(seg transport.Segment) (*TCPSegment, error) {
+	pseudo := transport.Pseudo{
 		SrcIp: seg.SrcIp,
 		DstIp: seg.DstIp,
 		Zero:  0,
-		PTCL:  uint8(IPProtoTCP),
+		PTCL:  uint8(transport.IPProtoTCP),
 		Len:   uint16(len(seg.Data)),
 	}
 
