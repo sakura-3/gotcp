@@ -19,7 +19,7 @@ type IpReader struct {
 	filter Filter
 }
 
-func NewIpReader(name string, up chan<- transport.Segment, down <-chan transport.Segment) *IpReader {
+func NewIpReader(ctx context.Context, name string, filter Filter) (<-chan transport.Segment, chan<- transport.Segment) {
 	ifce, err := water.New(water.Config{
 		DeviceType: water.TUN,
 		PlatformSpecificParams: water.PlatformSpecificParams{
@@ -31,19 +31,20 @@ func NewIpReader(name string, up chan<- transport.Segment, down <-chan transport
 		panic(err)
 	}
 
+
+	up := make(chan transport.Segment)
+	down := make(chan transport.Segment)
+
 	ipReader := &IpReader{
 		Interface: ifce,
 		upC:       up,
 		downC:     down,
-		filter:    nil,
+		filter:    filter,
 	}
 
-	return ipReader
-}
+	go ipReader.Run(ctx)
 
-func (ir *IpReader) WithFilter(filter Filter) *IpReader {
-	ir.filter = filter
-	return ir
+	return up, down
 }
 
 func (ir *IpReader) Run(ctx context.Context) {
