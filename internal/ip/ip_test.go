@@ -166,3 +166,28 @@ func TestNewIPPacket_TCP(t *testing.T) {
 		t.Errorf("Expected Payload length 44, got %d", len(packet.Payload))
 	}
 }
+
+func TestByte(t *testing.T) {
+	hexData := "45 00 00 40 00 00 40 00 40 06 26 99 0a 01 00 0a 0a 01 00 14 ce cc 1f 90 66 e6 2e ab 00 00 00 00 b0 02 ff ff 0c 51 00 00 02 04 05 b4 01 03 03 06 01 01 08 0a 16 85 7c 18 00 00 00 00 04 02 00 00"
+	hexData = string(bytes.ReplaceAll([]byte(hexData), []byte(" "), []byte("")))
+	rawData, err := hex.DecodeString(hexData)
+	if err != nil {
+		t.Error(err)
+	}
+
+	packet, err := NewIPPacketFromLower(rawData)
+	if err != nil {
+		t.Error(err)
+	}
+	byteData := packet.HeaderByte()
+	byteData = append(byteData, packet.Payload...)
+	if len(byteData) != len(rawData) {
+		t.Errorf("Expected byteData length %d, got %d", len(rawData), len(byteData))
+	}
+
+	for i := range byteData {
+		if byteData[i] != rawData[i] {
+			t.Errorf("Expected byteData[%d] = %x, got %x", i, rawData[i], byteData[i])
+		}
+	}
+}

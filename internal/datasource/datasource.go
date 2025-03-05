@@ -1,4 +1,4 @@
-package internal
+package datasource
 
 import (
 	"context"
@@ -14,12 +14,12 @@ type Filter func(ipPkt *ip.IPPacket) bool
 
 type IpReader struct {
 	*water.Interface
-	upC    chan<- transport.Segment // IP -> transport,需要在IP层关闭
-	downC  <-chan transport.Segment // transport -> IP,由传输层关闭
+	upC    chan<- *transport.Segment // IP -> transport,需要在IP层关闭
+	downC  <-chan *transport.Segment // transport -> IP,由传输层关闭
 	filter Filter
 }
 
-func NewIpReader(ctx context.Context, name string, filter Filter) (<-chan transport.Segment, chan<- transport.Segment) {
+func NewIpReader(ctx context.Context, name string, filter Filter) (<-chan *transport.Segment, chan<- *transport.Segment) {
 	ifce, err := water.New(water.Config{
 		DeviceType: water.TUN,
 		PlatformSpecificParams: water.PlatformSpecificParams{
@@ -31,9 +31,8 @@ func NewIpReader(ctx context.Context, name string, filter Filter) (<-chan transp
 		panic(err)
 	}
 
-
-	up := make(chan transport.Segment)
-	down := make(chan transport.Segment)
+	up := make(chan *transport.Segment)
+	down := make(chan *transport.Segment)
 
 	ipReader := &IpReader{
 		Interface: ifce,
@@ -56,6 +55,16 @@ func (ir *IpReader) Run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
+
+		// TODO: 将上层数据按MTU拆分
+		case seg := <-ir.downC:
+			ipkt := ip.NewIPPacketFromUpper(seg)
+			bt := ipkt.HeaderByte()
+			bt = append(bt, ipkt.Payload...)
+			if _, err := ir.Write(bt); err != nil {
+				log.Println(err.Error())
+				continue
+			}
 		default:
 			n, err := ir.Read(packet)
 			if err != nil {
@@ -74,9 +83,9 @@ func (ir *IpReader) Run(ctx context.Context) {
 
 			data := make([]byte, len(ipPkt.Payload))
 			copy(data, ipPkt.Payload)
-			ir.upC <- transport.Segment{
-				SrcIp:   ipPkt.SrcIp,
-				DstIp:   ipPkt.DstIp,
+			ir.upC <- &transport.Segment{
+				SrcIp:   transport.IP(ipPkt.SrcIp),
+				DstIp:   transport.IP(ipPkt.DstIp),
 				Data:    data,
 				HasNext: ipPkt.Flags.MF(),
 			}

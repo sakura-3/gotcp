@@ -34,15 +34,14 @@ func (s State) String() string {
 
 // 每个TCP连接的唯一标识
 type Quad struct {
-	SrcIp   ip.IP
+	SrcIp   transport.IP
 	SrcPort uint16
-	DstIp   ip.IP
+	DstIp   transport.IP
 	DstPort uint16
 }
 
-type connection struct {
-	Quad
-	State
+func (q Quad) String() string {
+	return fmt.Sprintf("%s:%d -> %s:%d", q.SrcIp, q.SrcPort, q.DstIp, q.DstPort)
 }
 
 var TCPFilter = func(ipPkt *ip.IPPacket) bool {
@@ -114,7 +113,7 @@ type TCPSegment struct {
 }
 
 // 从下层数据包构造TCP数据段,pseudo 依赖网络层提供, 用于计算校验和
-func NewTCPSegmentFromLower(seg transport.Segment) (*TCPSegment, error) {
+func NewTCPSegmentFromLower(seg *transport.Segment) (*TCPSegment, error) {
 	pseudo := transport.Pseudo{
 		SrcIp: seg.SrcIp,
 		DstIp: seg.DstIp,
@@ -150,4 +149,18 @@ func NewTCPSegmentFromLower(seg transport.Segment) (*TCPSegment, error) {
 
 func (t *TCPSegment) String() string {
 	return fmt.Sprintf("%s:%d -> %s:%d, seq=%d, ack=%d, SYN=%t, RST=%t, FIN=%t, len(data)=%d\n", t.SrcIp, t.SrcPort, t.DstIp, t.DstPort, t.Seq, t.Ack, t.Flags.SYN(), t.Flags.RST(), t.Flags.FIN(), len(t.Data))
+}
+
+// TODO: 将 seg 转为byte数组，发送给下层
+func (t *TCPSegment) Byte() []byte {
+	return []byte{}
+}
+
+func (t *TCPSegment) Quad() Quad {
+	return Quad{
+		SrcIp:   t.SrcIp,
+		SrcPort: t.SrcPort,
+		DstIp:   t.DstIp,
+		DstPort: t.DstPort,
+	}
 }

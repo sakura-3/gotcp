@@ -2,6 +2,7 @@ package ip
 
 import (
 	"fmt"
+	"gotcp/internal/transport"
 )
 
 type IP [4]byte
@@ -50,7 +51,8 @@ type IPPacket struct {
 	SrcIp    IP     // 源IP
 	DstIp    IP     // 目的IP
 	Options  []byte // 额外头部
-	Payload  []byte // 数据包内容
+
+	Payload []byte // 数据包内容
 }
 
 // 从下层数据包构造IP数据包
@@ -80,4 +82,39 @@ func NewIPPacketFromLower(data []byte) (*IPPacket, error) {
 		Options:  rawData[20:IHL],
 		Payload:  rawData[IHL:],
 	}, nil
+}
+
+// TODO: 构造IP数据包
+func NewIPPacketFromUpper(seg *transport.Segment) *IPPacket {
+	ipkt := &IPPacket{}
+	ipkt.Version = 4
+	ipkt.IHL = 20
+	ipkt.Tos = 0
+	ipkt.TTL = 64
+	ipkt.Proto = uint8(transport.IPProtoTCP)
+	ipkt.SrcIp = IP(seg.SrcIp)
+	ipkt.DstIp = IP(seg.DstIp)
+	ipkt.Payload = seg.Data
+
+	return ipkt
+}
+
+func (ipkt *IPPacket) HeaderByte() []byte {
+	header := make([]byte, ipkt.IHL)
+	header[0] = ipkt.Version<<4 | ipkt.IHL/4
+	header[1] = ipkt.Tos
+	header[2] = uint8(ipkt.TotLen >> 8)
+	header[3] = uint8(ipkt.TotLen)
+	header[4] = uint8(ipkt.ID >> 8)
+	header[5] = uint8(ipkt.ID)
+	header[6] = uint8(ipkt.Flags)<<5 | uint8(ipkt.Offset>>8)
+	header[7] = uint8(ipkt.Offset)
+	header[8] = ipkt.TTL
+	header[9] = ipkt.Proto
+	header[10] = uint8(ipkt.Checksum >> 8)
+	header[11] = uint8(ipkt.Checksum)
+	copy(header[12:], ipkt.SrcIp[:])
+	copy(header[16:], ipkt.DstIp[:])
+	copy(header[20:], ipkt.Options)
+	return header
 }
