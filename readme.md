@@ -1,17 +1,10 @@
-This piece of code creates a TAP interface, and prints some header information for every frame. After pull up the main.go, you'll need to bring up the interface and assign an IP address. All of these need root permission.
+尝试使用`GO`实现[RFC793](https://datatracker.ietf.org/doc/html/rfc793)
 
-```bash
-sudo go run main.go
-```
-In a new terminal:
+为了在用户态实现TCP协议,并且处理真实的网络流量,项目使用了Linux内核中的[TUN/TAP](https://en.wikipedia.org/wiki/TUN/TAP)特性
 
-```bash
-sudo ip addr add 10.1.0.10/24 dev gotcp
-sudo ip link set dev gotcp up
-```
+TODO
 
-Wait until the output main.go terminal, try sending some ICMP broadcast message:
-
-```bash
-ping -I gotcp 127.0.0.1
-```
+- [x] 基于tun网卡接收和发送原始IP数据包
+- [x] IP <-> TCP 的解析
+- [ ] TCP 协议栈
+- [ ] 测试
